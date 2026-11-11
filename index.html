@@ -1,0 +1,478 @@
+<title>Follow the Money</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap">
+<style>
+/* Layout: a ledger desk. Scenario chooser, a step rail, one "where is the money" line, then account cards ruled like ledger pages. */
+:root {
+  --bg: #f2f5f3;
+  --surface: #ffffff;
+  --ink: #16211c;
+  --muted: #56645d;
+  --rule: #d5ddd8;
+  --accent: #1d5e48;
+  --accent-soft: #e2efe9;
+  --debit: #a3402c;
+  --debit-soft: #f7e6e1;
+  --credit: #1d6b3f;
+  --credit-soft: #e1f1e6;
+  --held: #8a6100;
+  --held-soft: #f6edd6;
+  --font-display: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1613; --surface: #17211d; --ink: #e6eeea; --muted: #9aaba3; --rule: #2b3833;
+    --accent: #6cc3a0; --accent-soft: #1d3329; --debit: #ef8f78; --debit-soft: #3a211b;
+    --credit: #79cf98; --credit-soft: #1b3324; --held: #e2b555; --held-soft: #3a2f16;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1613; --surface: #17211d; --ink: #e6eeea; --muted: #9aaba3; --rule: #2b3833;
+  --accent: #6cc3a0; --accent-soft: #1d3329; --debit: #ef8f78; --debit-soft: #3a211b;
+  --credit: #79cf98; --credit-soft: #1b3324; --held: #e2b555; --held-soft: #3a2f16;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 40px;
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+header { display: flex; flex-direction: column; gap: 6px; }
+.eyebrow { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(28px, 4.4vw, 40px); line-height: 1.15; margin: 0; text-wrap: balance; }
+.lede { color: var(--muted); max-width: 64ch; margin: 0; }
+
+.chooser { display: flex; flex-wrap: wrap; gap: 8px; }
+.chooser button {
+  font: inherit; font-size: 14px; font-weight: 500; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--rule); border-radius: 999px; padding: 8px 16px; cursor: pointer;
+}
+.chooser button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.chooser button:focus-visible, .controls button:focus-visible, .rail button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.scenario-intro { color: var(--muted); margin: 0; max-width: 70ch; }
+
+.rail { display: grid; grid-template-columns: repeat(var(--n, 5), minmax(0, 1fr)); gap: 0; position: relative; }
+.rail::before { content: ""; position: absolute; left: 0; right: 0; top: 13px; height: 2px; background: var(--rule); }
+.rail button {
+  position: relative; background: none; border: 0; padding: 0 6px 0 0; text-align: left; cursor: pointer; font: inherit; color: var(--muted);
+  display: flex; flex-direction: column; gap: 4px; min-width: 0;
+}
+.rail .dot { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--rule); background: var(--bg); display: grid; place-items: center; font-family: var(--font-num); font-size: 12px; color: var(--muted); }
+.rail button.done .dot { border-color: var(--accent); color: var(--accent); }
+.rail button.current .dot { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.rail .rt { font-size: 13px; font-weight: 600; color: var(--ink); line-height: 1.25; overflow-wrap: anywhere; }
+.rail .rw { font-size: 12px; color: var(--muted); }
+.rail button:not(.current):not(.done) .rt { color: var(--muted); font-weight: 500; }
+
+.where {
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 20px 22px;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px 24px; align-items: start;
+}
+.where .label { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.where .answer { font-family: var(--font-display); font-size: clamp(20px, 2.6vw, 26px); line-height: 1.3; margin: 4px 0 0; text-wrap: balance; }
+.where .detail { color: var(--muted); margin: 10px 0 0; max-width: 72ch; }
+.where .flow { margin: 12px 0 0; font-family: var(--font-num); font-size: 13px; color: var(--accent); }
+.where .when { font-family: var(--font-num); font-size: 13px; padding: 6px 12px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+
+.accounts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.acct {
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px 16px;
+  display: flex; flex-direction: column; gap: 6px; min-width: 0; transition: border-color .25s ease;
+}
+.acct.changed { border-color: var(--accent); }
+.acct .owner { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.acct .name { font-weight: 600; line-height: 1.3; }
+.acct .amt { border-top: 1px solid var(--rule); padding-top: 8px; font-family: var(--font-num); font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; margin-top: 6px; overflow-wrap: anywhere; }
+.acct .meta { display: flex; flex-wrap: wrap; gap: 6px; min-height: 24px; align-items: center; }
+.chip { font-family: var(--font-num); font-size: 12px; padding: 2px 8px; border-radius: 6px; font-variant-numeric: tabular-nums; }
+.chip.down { background: var(--debit-soft); color: var(--debit); }
+.chip.up { background: var(--credit-soft); color: var(--credit); }
+.chip.held { background: var(--held-soft); color: var(--held); font-family: var(--font-body); font-weight: 500; }
+.chip.posted { background: var(--accent-soft); color: var(--accent); font-family: var(--font-body); font-weight: 500; }
+
+.recon { border: 1px dashed var(--rule); border-radius: 10px; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; font-size: 14px; }
+.recon[hidden] { display: none; }
+.recon .rl { font-weight: 600; }
+.recon .rv { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.recon .ok { color: var(--credit); font-weight: 600; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.controls button {
+  font: inherit; font-weight: 600; font-size: 14px; border-radius: 8px; padding: 10px 18px; cursor: pointer;
+  border: 1px solid var(--rule); background: var(--surface); color: var(--ink);
+}
+.controls button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.controls button:disabled { opacity: .45; cursor: default; }
+.controls .hint { color: var(--muted); font-size: 13px; }
+
+footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--rule); padding-top: 14px; }
+
+@media (max-width: 640px) {
+  .rail { grid-template-columns: repeat(var(--n, 5), 92px); padding-bottom: 6px; }
+  .rail .rt { overflow-wrap: normal; }
+  .accounts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .acct .amt { font-size: 18px; }
+  .rail-wrap { overflow-x: auto; }
+  .where { grid-template-columns: minmax(0, 1fr); }
+  .where .when { justify-self: start; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Payments, Decoded · Interactive</div>
+    <h1>Follow the money in a $50 card purchase</h1>
+    <p class="lede">Pick a card, then step through the purchase. Watch which account changes at each moment, and where the $50 actually is.</p>
+  </header>
+
+  <div class="chooser" role="group" aria-label="Choose a card" id="chooser"></div>
+  <p class="scenario-intro" id="intro"></p>
+
+  <div class="rail-wrap"><div class="rail" id="rail" role="list"></div></div>
+
+  <section class="where" aria-live="polite">
+    <div>
+      <div class="label">Where is the $50 right now?</div>
+      <p class="answer" id="answer"></p>
+      <p class="detail" id="detail"></p>
+      <p class="flow" id="flow"></p>
+    </div>
+    <div class="when" id="when"></div>
+  </section>
+
+  <div class="accounts" id="accounts"></div>
+  <div class="recon" id="recon" hidden></div>
+
+  <div class="controls">
+    <button type="button" id="prev">Back</button>
+    <button type="button" id="next" class="primary">Next step</button>
+    <button type="button" id="restart">Start over</button>
+    <span class="hint">Tip: use the ← and → keys.</span>
+  </div>
+
+  <footer>
+    <span>Example amounts. Fees are simplified and vary in real life.</span>
+    <span>© 2026 Ankit</span>
+  </footer>
+</div>
+
+<script>
+const S = {
+  credit: {
+    label: "Credit card",
+    intro: "You borrow from the issuer. No money of yours moves until you pay your bill.",
+    accounts: [
+      { id: "avail", owner: "You", name: "Available credit" },
+      { id: "owe", owner: "You", name: "Amount you owe the issuer" },
+      { id: "issuer", owner: "Issuer bank", name: "Issuer's own cash" },
+      { id: "merchant", owner: "Café", name: "Merchant's bank account" }
+    ],
+    steps: [
+      { t: "Before", when: "Start", v: { avail: 1000, owe: 0, issuer: 10000, merchant: 500 },
+        where: "Nowhere yet. No money is set aside for you.",
+        detail: "Your card comes with a $1,000 credit line: a promise to lend, not a pot of money." },
+      { t: "You tap", when: "Seconds", v: { avail: 950, owe: 0, issuer: 10000, merchant: 500 }, s: { avail: "held" },
+        where: "Still nowhere. The issuer reserved $50 of your credit line.",
+        detail: "The issuer approved the authorization and placed a hold. Your available credit drops right away, but nothing has moved.",
+        flow: "Authorization: approved" },
+      { t: "Clearing", when: "Same day or next", v: { avail: 950, owe: 50, issuer: 10000, merchant: 500 }, s: { owe: "posted" },
+        where: "On paper: you now owe the issuer $50.",
+        detail: "The café submitted its final sales. The hold becomes a posted charge on your card account." },
+      { t: "Settlement", when: "Usually next day", v: { avail: 950, owe: 50, issuer: 9951.05, merchant: 500 },
+        where: "In transit, and it's the issuer's own money.",
+        detail: "The issuer pays $48.95 through the network to the café's acquirer and keeps $1.05 as interchange.",
+        flow: "Issuer → network → acquirer: $48.95" },
+      { t: "Funding", when: "1–2 business days", v: { avail: 950, owe: 50, issuer: 9951.05, merchant: 548.70 },
+        where: "With the café, minus $1.30 in total fees.",
+        detail: "The acquirer deposits $48.70 after its own and the network's fees. The issuer is now out $48.95 until you pay.",
+        flow: "Acquirer → café: $48.70" },
+      { t: "You pay the bill", when: "Weeks later", v: { avail: 1000, owe: 0, issuer: 10001.05, merchant: 548.70 },
+        where: "Back with the issuer. The loop is closed.",
+        detail: "You pay your statement in full by the due date, so no interest. The issuer ends up $1.05 ahead from interchange.",
+        flow: "Your bank → issuer: $50.00" }
+    ]
+  },
+  debit: {
+    label: "Debit card",
+    intro: "You spend your own money, straight from your checking account.",
+    accounts: [
+      { id: "avail", owner: "You", name: "Available balance" },
+      { id: "ledger", owner: "You", name: "Posted (ledger) balance" },
+      { id: "merchant", owner: "Café", name: "Merchant's bank account" }
+    ],
+    steps: [
+      { t: "Before", when: "Start", v: { avail: 800, ledger: 800, merchant: 500 },
+        where: "In your checking account.",
+        detail: "It's your money, held by your bank as a deposit." },
+      { t: "You tap", when: "Seconds", v: { avail: 750, ledger: 800, merchant: 500 }, s: { avail: "held" },
+        where: "Still in your account, but held.",
+        detail: "Your bank approved the purchase and placed a $50 hold. You can't spend it, even though it hasn't left yet.",
+        flow: "Authorization: approved" },
+      { t: "Clearing", when: "Same day or next", v: { avail: 750, ledger: 750, merchant: 500 }, s: { ledger: "posted" },
+        where: "Out of your account.",
+        detail: "The hold is replaced by a posted $50 debit. Both of your balances now match." },
+      { t: "Settlement", when: "Usually next day", v: { avail: 750, ledger: 750, merchant: 500 },
+        where: "In transit from your bank to the café's acquirer.",
+        detail: "Your bank keeps interchange of about $0.35 (21¢ + 0.05% + 1¢), under the Fed's cap for banks with over $10 billion in assets. A federal appeals court struck that cap down in October 2026, so the figure is due to change.",
+        flow: "Your bank → network → acquirer: $49.65" },
+      { t: "Funding", when: "1–2 business days", v: { avail: 750, ledger: 750, merchant: 549.45 },
+        where: "With the café, minus about $0.55 in total fees.",
+        detail: "Debit is much cheaper for the merchant than credit, because the interchange is capped.",
+        flow: "Acquirer → café: $49.45" }
+    ]
+  },
+  prepaid: {
+    label: "Prepaid payroll card",
+    intro: "Your employer loads your pay onto a card. The money sits in one pooled account at the bank, and a ledger says how much is yours.",
+    accounts: [
+      { id: "employer", owner: "Employer", name: "Employer's bank account" },
+      { id: "pool", owner: "Issuing bank", name: "Pooled custodial (FBO) account" },
+      { id: "card", owner: "You", name: "Your card balance (on the ledger)" },
+      { id: "merchant", owner: "Café", name: "Merchant's bank account" }
+    ],
+    others: 100000,
+    steps: [
+      { t: "Before", when: "Start", v: { employer: 20000, pool: 100000, card: 0, merchant: 500 }, due: 0,
+        where: "With your employer.",
+        detail: "The pooled account already holds $100,000 belonging to other cardholders." },
+      { t: "Payday load", when: "Payday", v: { employer: 19400, pool: 100600, card: 600, merchant: 500 }, due: 0,
+        where: "In the pooled account. The ledger says $600 of it is yours.",
+        detail: "Your employer prefunds your pay into the program. The account is opened in the program's name, but the money in it belongs to the cardholders. That's what \"for the benefit of\" means.",
+        flow: "Employer → pooled account: $600" },
+      { t: "You tap", when: "Seconds", v: { employer: 19400, pool: 100600, card: 550, merchant: 500 }, s: { card: "held" }, due: 0, hold: 50,
+        where: "Still in the pool, held for this purchase.",
+        detail: "The program approves and holds $50 against your card balance.",
+        flow: "Authorization: approved" },
+      { t: "Clearing", when: "Same day or next", v: { employer: 19400, pool: 100600, card: 550, merchant: 500 }, s: { card: "posted" }, due: 50,
+        where: "Still in the pool, but now owed to the network.",
+        detail: "Your card balance is reduced for good. The program now owes $50 at settlement, which reconciliation must account for." },
+      { t: "Settlement", when: "Usually next day", v: { employer: 19400, pool: 100550, card: 550, merchant: 500 }, due: 0,
+        where: "Out of the pool and on its way to the café.",
+        detail: "The pooled account pays the network. Ledger balances and the bank balance match again.",
+        flow: "Pooled account → network → acquirer" },
+      { t: "Funding", when: "1–2 business days", v: { employer: 19400, pool: 100550, card: 550, merchant: 548.70 }, due: 0,
+        where: "With the café, minus fees.",
+        detail: "Prepaid interchange depends on the issuing bank's size and the type of program.",
+        flow: "Acquirer → café: $48.70" }
+    ]
+  },
+  corporate: {
+    label: "Corporate card (in arrears)",
+    intro: "Employees spend first. The card program fronts the money and bills the company afterward.",
+    accounts: [
+      { id: "limit", owner: "Company", name: "Available card limit" },
+      { id: "owe", owner: "Company", name: "Amount the company owes" },
+      { id: "program", owner: "Issuer or program", name: "Program's own cash" },
+      { id: "company", owner: "Company", name: "Company's bank account" },
+      { id: "merchant", owner: "Café", name: "Merchant's bank account" }
+    ],
+    steps: [
+      { t: "Before", when: "Start", v: { limit: 5000, owe: 0, program: 50000, company: 30000, merchant: 500 },
+        where: "In the company's bank account.",
+        detail: "The company was approved for a $5,000 limit. Nothing was deposited up front." },
+      { t: "Employee taps", when: "Seconds", v: { limit: 4950, owe: 0, program: 50000, company: 30000, merchant: 500 }, s: { limit: "held" },
+        where: "Still with the company. $50 of the limit is reserved.",
+        detail: "The program checks the limit and any spending rules, then approves.",
+        flow: "Authorization: approved" },
+      { t: "Clearing", when: "Same day or next", v: { limit: 4950, owe: 50, program: 50000, company: 30000, merchant: 500 }, s: { owe: "posted" },
+        where: "On paper: the company now owes $50.",
+        detail: "The purchase posts to the company's card account." },
+      { t: "Settlement", when: "Usually next day", v: { limit: 4950, owe: 50, program: 49951.05, company: 30000, merchant: 500 },
+        where: "In transit, paid with the program's money.",
+        detail: "The program fronts $48.95 to the network and keeps interchange. It's effectively lending to the company.",
+        flow: "Program → network → acquirer: $48.95" },
+      { t: "Funding", when: "1–2 business days", v: { limit: 4950, owe: 50, program: 49951.05, company: 30000, merchant: 548.70 },
+        where: "With the café. The company still hasn't paid.",
+        detail: "This gap is why arrears programs need credit approval and often collateral.",
+        flow: "Acquirer → café: $48.70" },
+      { t: "Company pays the bill", when: "End of billing cycle", v: { limit: 5000, owe: 0, program: 50001.05, company: 29950, merchant: 548.70 },
+        where: "Back with the program. The company finally pays.",
+        detail: "The company settles its monthly bill, the limit is restored, and the program has earned its interchange.",
+        flow: "Company → program: $50.00" }
+    ]
+  },
+  virtual: {
+    label: "Virtual card (just in time)",
+    intro: "The card holds nothing until the moment it's used. A real-time decision moves just enough money to cover each purchase.",
+    accounts: [
+      { id: "funding", owner: "Company", name: "Company's funding balance" },
+      { id: "card", owner: "Virtual card", name: "Card balance" },
+      { id: "merchant", owner: "Café", name: "Merchant's bank account" }
+    ],
+    steps: [
+      { t: "Before", when: "Start", v: { funding: 10000, card: 0, merchant: 500 },
+        where: "In the company's funding balance. The card holds $0.",
+        detail: "A single-use virtual card was created for this purchase, with a $0 balance." },
+      { t: "You tap", when: "Seconds", v: { funding: 9950, card: 0, merchant: 500 }, s: { card: "held" },
+        where: "Moved to the card at the instant of the tap, then held.",
+        detail: "The authorization is passed in real time to the program. Its rules check the merchant and amount, move $50 onto the card, and approve. All within the authorization window.",
+        flow: "Funding balance → card: $50 (then held)" },
+      { t: "Clearing", when: "Same day or next", v: { funding: 9950, card: 0, merchant: 500 }, s: { card: "posted" },
+        where: "Out of the card. The hold becomes a posted charge.",
+        detail: "The card goes back to $0, so it can't be reused or overspent." },
+      { t: "Settlement", when: "Usually next day", v: { funding: 9950, card: 0, merchant: 500 },
+        where: "In transit to the café's acquirer.",
+        detail: "The issuing bank pays the network and keeps interchange.",
+        flow: "Issuer → network → acquirer: $48.95" },
+      { t: "Funding", when: "1–2 business days", v: { funding: 9950, card: 0, merchant: 548.70 },
+        where: "With the café, minus fees.",
+        detail: "At no point did the card hold more than this one purchase needed.",
+        flow: "Acquirer → café: $48.70" }
+    ]
+  }
+};
+
+const order = ["credit", "debit", "prepaid", "corporate", "virtual"];
+const fmt = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+let cur = "credit", step = 0, shown = {};
+
+const $ = id => document.getElementById(id);
+
+function buildChooser() {
+  const c = $("chooser");
+  c.innerHTML = "";
+  order.forEach(k => {
+    const b = document.createElement("button");
+    b.type = "button"; b.id = "pick-" + k; b.textContent = S[k].label;
+    b.setAttribute("aria-pressed", k === cur ? "true" : "false");
+    b.addEventListener("click", () => { pick(k); });
+    c.appendChild(b);
+  });
+}
+
+function pick(k, keepHash) {
+  cur = k; step = 0; shown = {};
+  if (!keepHash) { try { history.replaceState(null, "", "#" + k); } catch (e) {} }
+  buildChooser(); buildRail(); buildAccounts(); render(true);
+}
+
+function buildRail() {
+  const r = $("rail"); const steps = S[cur].steps;
+  r.style.setProperty("--n", steps.length);
+  r.innerHTML = "";
+  steps.forEach((st, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.id = "rail-" + i; b.setAttribute("role", "listitem");
+    b.innerHTML = '<span class="dot">' + (i + 1) + '</span><span class="rt"></span><span class="rw"></span>';
+    b.querySelector(".rt").textContent = st.t;
+    b.querySelector(".rw").textContent = st.when;
+    b.addEventListener("click", () => { step = i; render(); });
+    r.appendChild(b);
+  });
+}
+
+function buildAccounts() {
+  const a = $("accounts"); a.innerHTML = "";
+  S[cur].accounts.forEach(acc => {
+    const d = document.createElement("div");
+    d.className = "acct"; d.id = "acct-" + acc.id;
+    d.innerHTML = '<div class="owner"></div><div class="name"></div><div class="amt"></div><div class="meta"></div>';
+    d.querySelector(".owner").textContent = acc.owner;
+    d.querySelector(".name").textContent = acc.name;
+    a.appendChild(d);
+  });
+}
+
+function tween(el, from, to) {
+  if (reduce || from === undefined || from === to) { el.textContent = fmt.format(to); return; }
+  const t0 = performance.now(), dur = 550;
+  function f(now) {
+    const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+    el.textContent = fmt.format(from + (to - from) * e);
+    if (p < 1) requestAnimationFrame(f);
+  }
+  requestAnimationFrame(f);
+}
+
+function render(first) {
+  const sc = S[cur], st = sc.steps[step], prev = step > 0 ? sc.steps[step - 1] : null;
+  $("intro").textContent = sc.intro;
+  $("answer").textContent = st.where;
+  $("detail").textContent = st.detail;
+  $("flow").textContent = st.flow || "";
+  $("flow").hidden = !st.flow;
+  $("when").textContent = st.when;
+
+  sc.steps.forEach((_, i) => {
+    const b = $("rail-" + i);
+    b.classList.toggle("current", i === step);
+    b.classList.toggle("done", i < step);
+    b.setAttribute("aria-current", i === step ? "step" : "false");
+  });
+
+  sc.accounts.forEach(acc => {
+    const el = $("acct-" + acc.id), amt = el.querySelector(".amt"), meta = el.querySelector(".meta");
+    const val = st.v[acc.id], before = prev ? prev.v[acc.id] : val;
+    tween(amt, first ? undefined : shown[acc.id], val);
+    shown[acc.id] = val;
+    meta.innerHTML = "";
+    const delta = Math.round((val - before) * 100) / 100;
+    if (delta !== 0) {
+      const c = document.createElement("span");
+      c.className = "chip " + (delta < 0 ? "down" : "up");
+      c.textContent = (delta < 0 ? "−" : "+") + fmt.format(Math.abs(delta));
+      meta.appendChild(c);
+    }
+    const s = st.s && st.s[acc.id];
+    if (s) {
+      const c = document.createElement("span");
+      c.className = "chip " + s;
+      c.textContent = s === "held" ? "Held" : "Posted";
+      meta.appendChild(c);
+    }
+    el.classList.toggle("changed", delta !== 0 || !!s);
+  });
+
+  const rec = $("recon");
+  if (cur === "prepaid") {
+    const others = sc.others, cardsTotal = others + st.v.card + (st.hold || 0), due = st.due || 0;
+    const ok = Math.abs(cardsTotal + due - st.v.pool) < 0.005;
+    rec.hidden = false;
+    rec.innerHTML = "";
+    const parts = [
+      ["Daily reconciliation", null],
+      ["All card balances", fmt.format(cardsTotal)],
+      ["Owed to the network", fmt.format(due)],
+      ["Pooled account", fmt.format(st.v.pool)]
+    ];
+    parts.forEach(([l, v]) => {
+      const sp = document.createElement("span");
+      if (v === null) { sp.className = "rl"; sp.textContent = l; }
+      else { sp.innerHTML = l + ': <span class="rv"></span>'; sp.querySelector(".rv").textContent = v; }
+      rec.appendChild(sp);
+    });
+    const m = document.createElement("span");
+    m.className = ok ? "ok" : "";
+    m.textContent = ok ? "Matched" : "Mismatch";
+    rec.appendChild(m);
+  } else { rec.hidden = true; }
+
+  $("prev").disabled = step === 0;
+  $("next").disabled = step === sc.steps.length - 1;
+  $("next").textContent = step === sc.steps.length - 1 ? "Done" : "Next step";
+}
+
+$("prev").addEventListener("click", () => { if (step > 0) { step--; render(); } });
+$("next").addEventListener("click", () => { if (step < S[cur].steps.length - 1) { step++; render(); } });
+$("restart").addEventListener("click", () => { step = 0; render(); });
+document.addEventListener("keydown", e => {
+  if (e.target.closest && e.target.closest("input, textarea")) return;
+  if (e.key === "ArrowRight") $("next").click();
+  if (e.key === "ArrowLeft") $("prev").click();
+});
+
+function fromHash() {
+  const h = (location.hash || "").slice(1);
+  return S[h] ? h : "credit";
+}
+window.addEventListener("hashchange", () => { const k = fromHash(); if (k !== cur) pick(k, true); });
+pick(fromHash(), true);
+</script>
