@@ -128,6 +128,17 @@ footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8p
   .where .when { justify-self: start; }
 }
 
+
+/* ---- Site navigation ---- */
+.sitenav { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--rule); }
+.sitenav a { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; font-size: 14px; font-weight: 600; color: var(--accent); text-decoration: none; border-radius: 8px; }
+.sitenav a:hover { text-decoration: underline; }
+.sitenav a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sitenav .home { gap: 0; }
+.sitenav .home .full { color: var(--ink); }
+.sitenav .other { color: var(--muted); font-weight: 500; }
+.sitenav .other b { color: var(--accent); font-weight: 600; }
+@media (max-width: 480px) { .sitenav .home .full, .sitenav .other .lbl { display: none; } }
 /* ---- Phone-friendly layer ---- */
 .rail-wrap { position: relative; scrollbar-width: none; }
 .rail-wrap::-webkit-scrollbar { display: none; }
@@ -157,6 +168,10 @@ footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8p
 <body>
 
 <div class="wrap">
+  <nav class="sitenav" aria-label="Site">
+    <a class="home" href="https://araut15.github.io/">←&nbsp;<span class="short">Home</span><span class="full">&nbsp;· Payments, Decoded</span></a>
+    <a class="other" href="https://araut15.github.io/token-explorer/"><span class="lbl">Next tool:&nbsp;</span><b>Token Explorer →</b></a>
+  </nav>
   <header>
     <div class="eyebrow">Payments, Decoded · Interactive</div>
     <h1>Follow the money in a $50 card purchase</h1>
@@ -191,7 +206,7 @@ footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8p
 
   <footer>
     <span>Example amounts. Fees are simplified and vary in real life.</span>
-    <span>© 2026 Ankit</span>
+    <span><a href="https://araut15.github.io/" style="color:inherit">Payments, Decoded home</a> · © 2026 Ankit</span>
   </footer>
 </div>
 
